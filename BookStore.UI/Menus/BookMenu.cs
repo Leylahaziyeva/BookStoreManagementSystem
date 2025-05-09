@@ -140,18 +140,20 @@ namespace BookStore.UI.Menus
                     Console.Write("Müellif adı ve ya soyadı: ");
                     string? authorSearch = Console.ReadLine();
                     var authors = _authorService.GetAll()
-                        .Where(a => a.FullName.Contains(authorSearch ?? "", StringComparison.OrdinalIgnoreCase))
+                        .Where(a => (a.Name + " " + a.Surname).Contains(authorSearch ?? "", StringComparison.OrdinalIgnoreCase))
                         .ToList();
+
                     if (authors.Any())
                     {
                         foreach (var author in authors)
                         {
-                            Console.WriteLine($"Müellif: {author.FullName}");
+                            Console.WriteLine($"Müellif: {author.Name} {author.Surname}");
+
                             if (author.Books.Any())
                             {
                                 foreach (var book in author.Books)
                                 {
-                                    Console.WriteLine($"  - Kitab: {book.Title}, Qiymet: {book.Price}, Stok: {book.Stock}");
+                                    Console.WriteLine($" Kitab: {book.Title}, Qiymet: {book.Price}, Stok: {book.Stock}");
                                 }
                             }
                             else
@@ -230,7 +232,7 @@ namespace BookStore.UI.Menus
             string? title = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(title))
             {
-                Console.WriteLine("Kitab adı boş ola bilməz.");
+                Console.WriteLine("Kitab adı boş ola bilmez.");
                 return;  
             }
 

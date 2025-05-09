@@ -9,6 +9,12 @@ namespace BookStore.Application.Services
 {
     public class AuthorManager : CrudManager<Author, AuthorDto, AuthorCreateDto, AuthorUpdateDto>, IAuthorService
     {
+        private readonly BookDbContext _context;
+
+        public AuthorManager()
+        {
+            _context = new BookDbContext();
+        }
         public List<AuthorDto> GetAll()
         {
             using (var context = new BookDbContext())
@@ -31,6 +37,10 @@ namespace BookStore.Application.Services
                     })
                     .ToList();
             }
+        }
+        List<Author> IAuthorService.GetAll()
+        {
+            return _context.Authors.Include(a => a.Books).ToList();
         }
     }
 }

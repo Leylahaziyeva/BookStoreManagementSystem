@@ -5,6 +5,7 @@ using BookStore.Application.Interfaces;
 using BookStore.Application.Services;
 using BookStore.Application.Validators.OrderDetailValidator;
 using BookStore.Application.Validators.OrderValidators;
+using BookStore.Domain.Entities;
 using BookStore.Infrastructure.EFCore.DataContext;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +54,7 @@ namespace BookStore.UI.Menus
             Console.WriteLine("Davam etmek üçün Enter basın.");
             Console.ReadLine();
         }
+
         static void AddCustomer()
         {
             try
@@ -236,24 +238,18 @@ namespace BookStore.UI.Menus
                 foreach (var order in orders)
                 {
                     Console.WriteLine($"\n Sifariş No : {order.Id}");
-                    Console.WriteLine($" Müşteri: {order.CustomerName}");
                     Console.WriteLine($" Tarix: {order.OrderDate:dd/MM/yyyy}");
                     Console.WriteLine($" Mebleğ: {order.TotalPrice} AZN");
-                    Console.WriteLine(" **Kitablar:**");
 
                     if (order.OrderDetails.Any())
                     {
                         foreach (var detail in order.OrderDetails)
                         {
-                            Console.WriteLine($"Kitab: {detail.BookTitle} | Miqdar: {detail.Quantity} eded | Qiymet: {detail.UnitPrice} AZN | Cemi: {detail.UnitPrice * detail.Quantity} AZN");
+                            Console.WriteLine($"Miqdar: {detail.Quantity} eded | Qiymet: {detail.UnitPrice} AZN | Cemi: {detail.UnitPrice * detail.Quantity} AZN");
                         }
                     }
-                    else
-                    {
-                        Console.WriteLine(" Kitab melumatı tapılmadı.");
-                    }
 
-                    Console.WriteLine(new string('-', 50)); 
+                    Console.WriteLine(new string('-', 50));
                 }
             }
             catch (Exception ex)

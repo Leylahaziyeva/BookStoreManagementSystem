@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using BookStore.Application.AutoMapping;
+using BookStore.Application.DTOs.OrderDtos;
 using BookStore.Application.Interfaces;
 using BookStore.Domain.Entities;
 using BookStore.Domain.Interfaces;
@@ -123,5 +124,6 @@ namespace BookStore.Application.Services
 
             return Mapper.Map<TDto>(Repository.Update(updatedEntity));
         }
+
     }
 }

@@ -88,7 +88,8 @@ namespace BookStore.UI.Menus
             Console.WriteLine("Müellif Siyahısı:");
             foreach (var author in authors)
             {
-                Console.WriteLine($"ID: {author.Id}, Ad: {author.FullName}");
+                Console.WriteLine($"ID: {author.Id}, Ad: {author.Name} {author.Surname}");
+
             }
         }
 
