@@ -1,8 +1,11 @@
 ﻿using BookStore.UI.Menus;
+using System.Text;
 class Program
 {
     static void Main(string[] args)
     {
+        Console.OutputEncoding = Encoding.UTF8;
+
         RunMainMenu();
     }
     static void RunMainMenu()

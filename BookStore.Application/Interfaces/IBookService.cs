@@ -7,5 +7,6 @@ namespace BookStore.Application.Interfaces
     {
         List<BookDto> GetBooksByAuthorId(int authorId);
         List<BookDto> GetBooksByGenreId(int genreId);
+        List<BookDto> GetAll();
     }
 }

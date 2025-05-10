@@ -5,10 +5,12 @@ using BookStore.Application.Interfaces;
 using BookStore.Application.Services;
 using BookStore.Application.Validators.OrderDetailValidator;
 using BookStore.Application.Validators.OrderValidators;
-using BookStore.Domain.Entities;
 using BookStore.Infrastructure.EFCore.DataContext;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using TableTower.Core.Builder;
+using TableTower.Core.Rendering;
+using TableTower.Core.Themes;
 
 namespace BookStore.UI.Menus
 {
@@ -66,6 +68,17 @@ namespace BookStore.UI.Menus
                 Console.Write("Müşterinin Email ünvanı: ");
                 string? email = Console.ReadLine();
 
+                var existingCustomers = _customerService.GetAll();
+                bool customerExists = existingCustomers.Any(c =>
+                    c.FullName.Equals($"{name} {surname}", StringComparison.OrdinalIgnoreCase) &&
+                    c.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+
+                if (customerExists)
+                {
+                    Console.WriteLine("Bu müştəri artıq mövcuddur.");
+                    return;
+                }
+
                 var dto = new CustomerCreateDto
                 {
                     Name = name,
@@ -74,6 +87,18 @@ namespace BookStore.UI.Menus
                 };
 
                 var result = _customerService.Add(dto);
+
+                var builder = new TableBuilder()
+                    .WithColumns("ID", "FullName", "Email")
+                    .WithTheme(new AsciiTheme());
+                var customers = _customerService.GetAll();
+                foreach (CustomerDto customer in customers)
+                {
+                    builder.AddRow(customer.Id, customer.FullName, customer.Email);
+                }
+
+                var table = builder.Build();
+                new ConsoleRenderer().Print(table);
 
                 Console.WriteLine($"Yeni müşteri elave olundu: {result.FullName}");
             }
@@ -93,10 +118,18 @@ namespace BookStore.UI.Menus
             {
                 Console.WriteLine("Mövcud Müşteriler:");
                 var customers = _customerService.GetAll();
+
+                var customerTableBuilder = new TableBuilder()
+                    .WithColumns("ID", "FullName", "Email")
+                    .WithTheme(new AsciiTheme());
+
                 foreach (var customer in customers)
                 {
-                    Console.WriteLine($"ID: {customer.Id}, Ad: {customer.FullName}");
+                    customerTableBuilder.AddRow(customer.Id, customer.FullName, customer.Email);
                 }
+
+                var customerTable = customerTableBuilder.Build();
+                new ConsoleRenderer().Print(customerTable);
 
                 Console.Write("Sifariş üçün Müşteri ID daxil edin: ");
                 if (!int.TryParse(Console.ReadLine(), out int customerId))
@@ -105,12 +138,21 @@ namespace BookStore.UI.Menus
                     return;
                 }
 
-                Console.WriteLine("Mövcud Kitablar: ");
+                Console.WriteLine("Mövcud Kitablar:");
+
                 var books = _bookService.GetAll();
+
+                var bookTableBuilder = new TableBuilder()
+                    .WithColumns("ID", "Title", "AuthorName", "Genre", "Price", "Stock")
+                    .WithTheme(new AsciiTheme());
+
                 foreach (var book in books)
                 {
-                    Console.WriteLine($"ID: {book.Id}, Ad: {book.Title}, Qiymet: {book.Price} AZN, Stok: {book.Stock}");
+                    bookTableBuilder.AddRow(book.Id, book.Title, book.AuthorFullName, book.GenreName, book.Price, book.Stock);
                 }
+
+                var bookTable = bookTableBuilder.Build();
+                new ConsoleRenderer().Print(bookTable);
 
                 List<OrderDetailDto> orderDetails = new();
                 decimal totalPrice = 0;
@@ -139,9 +181,12 @@ namespace BookStore.UI.Menus
                         continue;
                     }
 
-                    if (quantity > selectedBook.Stock)
+                    int availableStock = selectedBook.Stock;
+                    int totalQuantity = orderDetails.Where(d => d.BookId == bookId).Sum(d => d.Quantity) + quantity;
+
+                    if (totalQuantity > availableStock)
                     {
-                        Console.WriteLine($"Yalnız {selectedBook.Stock} eded mövcuddur.");
+                        Console.WriteLine($"Yalnız {availableStock} eded mövcuddur. Hal-hazırda {orderDetails.Where(d => d.BookId == bookId).Sum(d => d.Quantity)} eded almışsınız.");
                         continue;
                     }
 
@@ -175,19 +220,27 @@ namespace BookStore.UI.Menus
 
                 } while (choice == "he");
 
-                Console.WriteLine("\n--- Sifariş Melumatları ---");
-                Console.WriteLine($"Order Date (Local): {DateTime.Now}");
-                Console.WriteLine($"Order Details Count: {orderDetails.Count}");
+                Console.WriteLine("\n---------- Sifariş Melumatları -------");
+
+                var orderTableBuilder = new TableBuilder()
+                    .WithColumns("Book ID", "Quantity", "Unit Price", "Total Price")
+                    .WithTheme(new AsciiTheme());
+
                 foreach (var detail in orderDetails)
                 {
-                    Console.WriteLine($"Book ID: {detail.BookId}, Quantity: {detail.Quantity}, Unit Price: {detail.UnitPrice}");
+                    decimal total = detail.Quantity * detail.UnitPrice;
+                    orderTableBuilder.AddRow(detail.BookId, detail.Quantity, detail.UnitPrice, total);
                 }
-                Console.WriteLine("---------------------------\n");
+
+                var orderTable = orderTableBuilder.Build();
+                new ConsoleRenderer().Print(orderTable);
+
+                Console.WriteLine($"Umumi Mebleg: {totalPrice} AZN");
 
                 var orderDto = new OrderCreateDto
                 {
                     CustomerId = customerId,
-                    OrderDate = DateTime.Now, 
+                    OrderDate = DateTime.Now,
                     TotalPrice = totalPrice,
                     OrderDetails = orderDetails
                 };
@@ -225,31 +278,28 @@ namespace BookStore.UI.Menus
         {
             try
             {
-                var orders = _orderService.GetAll();
+                var orders = _orderService.GetAll(include: query => query.Include(o => o.Customer)
+                                                 .Include(o => o.OrderDetails).ThenInclude(od => od.Book)
+                );
+
+                Console.WriteLine("\n *****Bütün Sifarişler:*****");
+
+                var builder = new TableBuilder()
+                    .WithColumns("ID", "CustomerName", "OrderDate", "Total")
+                    .WithTheme(new AsciiTheme());
+
+                foreach (OrderDto order in orders)
+                {
+                    builder.AddRow(order.Id, order.CustomerName, order.OrderDate, order.TotalPrice);
+                }
+
+                var table = builder.Build();
+                new ConsoleRenderer().Print(table);
 
                 if (!orders.Any())
                 {
                     Console.WriteLine("Heç bir sifariş tapılmadı.");
                     return;
-                }
-
-                Console.WriteLine("\n **Bütün Sifarişler: **");
-
-                foreach (var order in orders)
-                {
-                    Console.WriteLine($"\n Sifariş No : {order.Id}");
-                    Console.WriteLine($" Tarix: {order.OrderDate:dd/MM/yyyy}");
-                    Console.WriteLine($" Mebleğ: {order.TotalPrice} AZN");
-
-                    if (order.OrderDetails.Any())
-                    {
-                        foreach (var detail in order.OrderDetails)
-                        {
-                            Console.WriteLine($"Miqdar: {detail.Quantity} eded | Qiymet: {detail.UnitPrice} AZN | Cemi: {detail.UnitPrice * detail.Quantity} AZN");
-                        }
-                    }
-
-                    Console.WriteLine(new string('-', 50));
                 }
             }
             catch (Exception ex)
@@ -262,7 +312,31 @@ namespace BookStore.UI.Menus
         {
             try
             {
+                Console.WriteLine("\n================= Mövcud Müşteriler =================");
+
+                var customers = _customerService.GetAll();
+
+                if (!customers.Any())
+                {
+                    Console.WriteLine("Heç bir müşteri tapılmadı.");
+                    return;
+                }
+
+                var customerTableBuilder = new TableBuilder()
+                    .WithColumns("ID", "FullName")
+                    .WithTheme(new AsciiTheme());
+
+                foreach (var cust in customers)
+                {
+                    customerTableBuilder.AddRow(cust.Id, cust.FullName);
+                }
+
+                var customerTable = customerTableBuilder.Build();
+                new ConsoleRenderer().Print(customerTable);
+
+                Console.WriteLine("\n=====================================================");
                 Console.Write("Müşteri ID-sini daxil edin: ");
+
                 if (!int.TryParse(Console.ReadLine(), out int customerId))
                 {
                     Console.WriteLine("Yanlış ID formatı.");
@@ -295,17 +369,28 @@ namespace BookStore.UI.Menus
 
                     foreach (var order in orders)
                     {
-                        Console.WriteLine($"\nSifariş No : {order.Id}");
-                        Console.WriteLine($"Tarix: {order.OrderDate:dd/MM/yyyy}");
-                        Console.WriteLine($"Cem Mebleg: {order.TotalPrice} AZN");
-                        Console.WriteLine(" **Kitablar:**");
+                        var combinedTableBuilder = new TableBuilder()
+                            .WithColumns("Order No", "OrderDate", "Book", "Stock", "UnitPrice (AZN)", "Total (AZN)")
+                            .WithTheme(new RoundedTheme());
 
                         foreach (var detail in order.OrderDetails)
                         {
-                            Console.WriteLine($"Kitab: {detail.Book.Title} | Miqdar: {detail.Quantity} | Qiymet: {detail.UnitPrice} AZN | Cemi: {detail.UnitPrice * detail.Quantity} AZN");
+                            combinedTableBuilder.AddRow(
+                                order.Id,
+                                order.OrderDate.ToString("dd.MM.yyyy"),
+                                //order.TotalPrice.ToString("F2"),
+                                detail.Book.Title,
+                                detail.Quantity,
+                                detail.UnitPrice.ToString("F2"),
+                                (detail.UnitPrice * detail.Quantity).ToString("F2")
+                            );
                         }
 
-                        Console.WriteLine(new string('-', 50)); 
+                        var combinedTable = combinedTableBuilder.Build();
+                        new ConsoleRenderer().Print(combinedTable);
+
+                        Console.WriteLine($" Total: {order.OrderDetails.Count} row(s)");
+                   
                     }
                 }
             }

@@ -1,8 +1,12 @@
-﻿using BookStore.Application.DTOs.GenreDtos;
+﻿using BookStore.Application.DTOs.BookDtos;
+using BookStore.Application.DTOs.GenreDtos;
 using BookStore.Application.Interfaces;
 using BookStore.Application.Services;
 using BookStore.Application.Validators.GenreValidators;
 using FluentValidation;
+using TableTower.Core.Builder;
+using TableTower.Core.Rendering;
+using TableTower.Core.Themes;
 
 namespace BookStore.UI.Menus
 {
@@ -56,6 +60,13 @@ namespace BookStore.UI.Menus
                     return; 
                 }
 
+                var existingGenre = _genreService.GetAll().FirstOrDefault(g => g.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                if (existingGenre != null)
+                {
+                    Console.WriteLine("Bu adda janr artıq mövcuddur.");
+                    return;
+                }
+
                 var dto = new GenreCreateDto { Name = name };
 
                 var validator = new GenreCreateDtoValidator();
@@ -72,6 +83,20 @@ namespace BookStore.UI.Menus
                 }
 
                 var result = _genreService.Add(dto);
+
+                var builder = new TableBuilder()
+                    .WithColumns("ID", "Name")
+                    .WithTheme(new AsciiTheme());
+
+                var genres = _genreService.GetAll();
+                foreach (GenreDto user in genres)
+                {
+                    builder.AddRow(user.Id, user.Name);
+                }
+
+                var table = builder.Build();
+                new ConsoleRenderer().Print(table);
+
                 Console.WriteLine($"Yeni janr elave olundu: {result?.Name ?? name}");
             }
             catch (ValidationException ex)
@@ -88,16 +113,37 @@ namespace BookStore.UI.Menus
         {
             var genres = _genreService.GetAll();
             Console.WriteLine("Janr Siyahısı:");
-            foreach (var genre in genres)
+
+            var builder = new TableBuilder()
+              .WithColumns("ID", "Name")
+              .WithTheme(new AsciiTheme());
+
+            foreach (GenreDto genre in genres)
             {
-                Console.WriteLine($"ID: {genre.Id}, Ad: {genre.Name}, Kitab sayı: {genre.BookCount}");
+                builder.AddRow(genre.Id, genre.Name);
             }
+
+            var table = builder.Build();
+            new ConsoleRenderer().Print(table);
         }
 
         static void ListGenreBooks()
         {
-            Console.Write("Kitablarını görmek istediyiniz janrın ID-sini daxil edin: ");
+            var genres = _genreService.GetAll();
+            Console.WriteLine("Janr Siyahısı:");
 
+            var tableBuilder = new TableBuilder()  
+                .WithColumns("ID", "Name")
+                .WithTheme(new AsciiTheme());
+
+            foreach (GenreDto genre in genres)
+            {
+                tableBuilder.AddRow(genre.Id, genre.Name);
+            }
+
+            var table = tableBuilder.Build();
+            new ConsoleRenderer().Print(table);
+            Console.Write("Kitablarını görmek istediyiniz janrın ID-sini daxil edin: ");
             if (!int.TryParse(Console.ReadLine(), out int genreId))
             {
                 Console.WriteLine("ID düzgün deyil. Zehmet olmasa düzgün bir ID daxil edin.");
@@ -106,27 +152,32 @@ namespace BookStore.UI.Menus
 
             try
             {
-                var genre = _genreService.GetById(genreId);
-                if (genre == null)
+                var genreDetails = _genreService.GetById(genreId);  
+                if (genreDetails == null)
                 {
                     Console.WriteLine("Bu janr tapılmadı.");
                     return;
                 }
 
                 var books = _bookService.GetBooksByGenreId(genreId);
+                if (books == null || !books.Any())
+                {
+                    Console.WriteLine("Bu janra aid kitab tapılmadı.");
+                    return;
+                }
 
-                if (books.Any())
+
+                var bookTableBuilder = new TableBuilder()  
+                    .WithColumns("ID", "Name", "Title", "Price", "Stok")
+                    .WithTheme(new AsciiTheme());
+
+                foreach (BookDto book in books)  
                 {
-                    Console.WriteLine($"{genre.Name} janrına aid kitablar:");
-                    foreach (var book in books)
-                    {
-                        Console.WriteLine($"ID: {book.Id}, Ad: {book.Title}, Qiymet: {book.Price} AZN, Stok: {book.Stock}");
-                    }
+                    bookTableBuilder.AddRow(book.Id, book.GenreName, book.Title, book.Price, book.Stock);
                 }
-                else
-                {
-                    Console.WriteLine("Bu janra aid heç bir kitab tapılmadı.");
-                }
+
+                var bookTable = bookTableBuilder.Build();
+                new ConsoleRenderer().Print(bookTable);
             }
             catch (Exception ex)
             {

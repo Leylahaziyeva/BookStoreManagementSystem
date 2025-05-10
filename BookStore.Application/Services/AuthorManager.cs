@@ -21,6 +21,7 @@ namespace BookStore.Application.Services
             {
                 return context.Authors
                     .Include(a => a.Books)
+                    .ThenInclude(b => b.Genre)
                     .Select(a => new AuthorDto
                     {
                         Id = a.Id,
@@ -38,9 +39,6 @@ namespace BookStore.Application.Services
                     .ToList();
             }
         }
-        List<Author> IAuthorService.GetAll()
-        {
-            return _context.Authors.Include(a => a.Books).ToList();
-        }
+       
     }
 }

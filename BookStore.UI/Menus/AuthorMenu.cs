@@ -1,7 +1,11 @@
 ﻿using BookStore.Application.DTOs.AuthorDtos;
+using BookStore.Application.DTOs.BookDtos;
 using BookStore.Application.Interfaces;
 using BookStore.Application.Services;
 using FluentValidation;
+using TableTower.Core.Builder;
+using TableTower.Core.Rendering;
+using TableTower.Core.Themes;
 
 namespace BookStore.UI.Menus
 {
@@ -61,6 +65,14 @@ namespace BookStore.UI.Menus
                 return;
             }
 
+            var existingAuthor = _authorService.GetAll()
+                .FirstOrDefault(a => a.FullName.Equals($"{name} {surname}", StringComparison.OrdinalIgnoreCase));
+            if (existingAuthor != null)
+            {
+                Console.WriteLine("Bu adda və soyadla müellif artıq mövcuddur.");
+                return;
+            }
+
             var dto = new AuthorCreateDto
             {
                 Name = name,
@@ -70,6 +82,19 @@ namespace BookStore.UI.Menus
             try
             {
                 var result = _authorService.Add(dto);
+
+                var builder = new TableBuilder()
+                    .WithColumns("ID", "FullName")
+                    .WithTheme(new AsciiTheme());
+                var authors = _authorService.GetAll();
+                foreach (AuthorDto user in authors)
+                {
+                    builder.AddRow(user.Id, user.FullName);
+                }
+
+                var table = builder.Build();
+                new ConsoleRenderer().Print(table);
+
                 Console.WriteLine($"Yeni müellif elave olundu: {result?.FullName ?? $"{name} {surname}"}");
             }
             catch (ValidationException ex)
@@ -86,11 +111,18 @@ namespace BookStore.UI.Menus
         {
             var authors = _authorService.GetAll();
             Console.WriteLine("Müellif Siyahısı:");
-            foreach (var author in authors)
-            {
-                Console.WriteLine($"ID: {author.Id}, Ad: {author.Name} {author.Surname}");
 
+            var builder = new TableBuilder()
+                .WithColumns("ID", "FullName")
+                .WithTheme(new AsciiTheme());
+
+            foreach (AuthorDto user in authors)
+            {
+                builder.AddRow(user.Id, user.FullName);
             }
+
+            var table = builder.Build();
+            new ConsoleRenderer().Print(table);
         }
 
         static void ListAuthorBooks()
@@ -102,18 +134,17 @@ namespace BookStore.UI.Menus
 
                 var books = _bookService.GetBooksByAuthorId(authorId);
 
-                if (books.Any())
+                var builder = new TableBuilder()
+                    .WithColumns("ID", "Name", "Title", "Price", "Stok")
+                    .WithTheme(new AsciiTheme());
+
+                foreach (BookDto user in books)
                 {
-                    Console.WriteLine("Müellifin kitabları:");
-                    foreach (var book in books)
-                    {
-                        Console.WriteLine($"ID: {book.Id}, Ad: {book.Title}, Qiymet: {book.Price} AZN, Stok: {book.Stock}");
-                    }
+                    builder.AddRow(user.Id, user.AuthorFullName, user.Title, user.Price, user.Stock);
                 }
-                else
-                {
-                    Console.WriteLine("Bu müellifin kitabları tapılmadı.");
-                }
+
+                var table = builder.Build();
+                new ConsoleRenderer().Print(table);
             }
             catch (ValidationException ex)
             {
@@ -125,7 +156,7 @@ namespace BookStore.UI.Menus
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Xeta baş verdi: {ex.Message}");
+              Console.WriteLine("Bu ID-li müellifin kitabi yoxdur.");
             }
         }
     }
