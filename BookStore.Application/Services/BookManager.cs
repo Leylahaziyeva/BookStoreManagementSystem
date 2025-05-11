@@ -59,13 +59,7 @@ namespace BookStore.Application.Services
                     Stock = b.Stock
                 })
                 .ToList();
-
-            foreach (var book in books)
-            {
-                Console.WriteLine($"ID: {book.Id}, Title: {book.Title}, Author: {book.AuthorFullName}, Genre: {book.GenreName}");
-            }
-
-            return books;
+                 return books;
         }
 
         public List<BookDto> GetBooksByAuthorId(int authorId)

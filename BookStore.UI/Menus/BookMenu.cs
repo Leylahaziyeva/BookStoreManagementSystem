@@ -337,6 +337,20 @@ namespace BookStore.UI.Menus
                 return;
             }
 
+            Console.WriteLine("\n================= Mövcud Kitablar =================");
+
+            var bookTableBuilder = new TableBuilder()
+                .WithColumns("ID", "Title", "AuthorName", "Genre", "Price", "Stock")
+                .WithTheme(new AsciiTheme());
+
+            foreach (var b in allBooks)
+            {
+                bookTableBuilder.AddRow(b.Id, b.Title, b.AuthorFullName, b.GenreName, b.Price, b.Stock);
+            }
+
+            var bookTable = bookTableBuilder.Build();
+            new ConsoleRenderer().Print(bookTable);
+
             Console.WriteLine("\n=====================================================");
             Console.Write("Redaktə etmək istədiyiniz kitabın ID-sini daxil edin: ");
             if (!int.TryParse(Console.ReadLine(), out int bookId))
@@ -463,12 +477,24 @@ namespace BookStore.UI.Menus
         {
             Console.WriteLine("\n================= Mövcud Kitablar =================");
 
-            var allBooks = _bookService.GetAll();
+            var allBooks = _bookService.GetAll(include: x => x.Include(x => x.Author).Include(x => x.Genre));
             if (!allBooks.Any())
             {
                 Console.WriteLine("Kitab siyahısı boşdur.");
                 return;
             }
+
+            var builder = new TableBuilder()
+                .WithColumns("ID", "Title", "AuthorName", "Genre", "Price", "Stock")
+                .WithTheme(new AsciiTheme());
+
+            foreach (BookDto book in allBooks)
+            {
+                builder.AddRow(book.Id, book.Title, book.AuthorFullName, book.GenreName, book.Price, book.Stock);
+            }
+
+            var table = builder.Build();
+            new ConsoleRenderer().Print(table);
 
             Console.Write("\nSilmek istədiyiniz kitabın ID-sini daxil edin: ");
             if (!int.TryParse(Console.ReadLine(), out int bookId))
